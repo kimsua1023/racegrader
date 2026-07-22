@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  cli-build:
+    name: CLI build & vet
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - run: go build ./...
+      - run: go vet ./...
+
+  license-check:
+    name: License check (cli 의존성)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - run: go install github.com/google/go-licenses@latest
+      - run: go-licenses check ./... --disallowed_types=forbidden,restricted
+
+  # kernel-race-test:
+  #   4주차(팀원2 작업 - "GitHub Actions 연동")에서 이 단계를 채웁니다.
+  #   RaceGrader CLI로 xv6를 N회 반복 실행해 결과를 리포트로 남깁니다.
+  #
+  #   name: RaceGrader repeated run
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install QEMU
+  #       run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
+  #     - name: Run RaceGrader N times
+  #       run: ./cli/racegrader run --kernel ./kernel --repeat 100

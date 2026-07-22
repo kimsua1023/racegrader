@@ -1,0 +1,27 @@
+# Go (cli/)
+/cli/bin/
+/cli/*.exe
+/cli/*.test
+/cli/coverage.out
+
+# xv6 / kernel 빌드 산출물
+/kernel/*.o
+/kernel/*.d
+/kernel/*.asm
+/kernel/*.sym
+/kernel/kernel
+/kernel/xv6.img
+/kernel/fs.img
+/kernel/.gdbinit
+/kernel/qemu.log
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# 자동 생성 리포트 (소스 아님)
+/reports/*.md
+!/reports/.gitkeep

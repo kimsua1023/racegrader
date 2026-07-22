@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 팀 노션 / 회의록
+    url: https://www.notion.so/  # 실제 팀 노션 링크로 교체하세요
+    about: 대회 규정, 회의록, 일정은 노션에서 확인하세요
