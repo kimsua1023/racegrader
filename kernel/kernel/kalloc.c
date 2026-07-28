@@ -40,9 +40,12 @@ pa2idx(uint64 pa)
 void
 krefinc(void *pa)
 {
-  acquire(&refcnt.lock);
+  // [BUG-INJECTED: lock-missing] 의도적으로 refcnt.lock 보호를 제거함.
+  // fork()가 여러 프로세스에서 거의 동시에 일어나면 이 증가 연산(read-modify-write)이
+  // 겹쳐서 증가분 하나가 유실될 수 있다 (lost update). 그 결과 실제 참조자 수보다
+  // refcount가 낮게 기록되어, 자식 중 하나가 exit할 때 아직 다른 프로세스가 쓰고
+  // 있는 페이지를 kfree()가 진짜로 반납해버리는 use-after-free로 이어진다.
   refcnt.count[pa2idx((uint64)pa)]++;
-  release(&refcnt.lock);
 }
 
 int
