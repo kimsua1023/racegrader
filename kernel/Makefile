@@ -9,6 +9,7 @@ OBJS = \
   $K/uart.o \
   $K/kalloc.o \
   $K/spinlock.o \
+  $K/chaos.o \
   $K/string.o \
   $K/main.o \
   $K/vm.o \
@@ -167,6 +168,14 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 ifndef CPUS
 CPUS := 3
 endif
+
+ifndef SEED
+SEED := 1
+endif
+ifndef CHAOS
+CHAOS := 1
+endif
+CFLAGS += -DCHAOS_SEED=$(SEED) -DCHAOS_ENABLED=$(CHAOS)
 
 QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false

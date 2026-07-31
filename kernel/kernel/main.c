@@ -41,5 +41,6 @@ main()
     plicinithart();   // ask PLIC for device interrupts
   }
 
-  scheduler();        
+  chaos_init();   // [CHAOS] 이 CPU의 교란 엔진 PRNG 시드 초기화
+  scheduler();
 }

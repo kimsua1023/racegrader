@@ -423,6 +423,11 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
+  int order[NPROC];
+  int idx;
+
+  for(idx = 0; idx < NPROC; idx++)
+    order[idx] = idx;
 
   c->proc = 0;
   for(;;){
@@ -434,8 +439,11 @@ scheduler(void)
     intr_on();
     intr_off();
 
+    chaos_shuffle(order, NPROC);   // [CHAOS] 매 라운드 스캔 순서 셔플
+
     int found = 0;
-    for(p = proc; p < &proc[NPROC]; p++) {
+    for(idx = 0; idx < NPROC; idx++) {
+      p = &proc[order[idx]];
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
         // Switch to chosen process.  It is the process's job
