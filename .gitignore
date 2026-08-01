@@ -5,11 +5,24 @@
 /cli/coverage.out
 
 # xv6 / kernel 빌드 산출물
-/kernel/*.o
-/kernel/*.d
-/kernel/*.asm
-/kernel/*.sym
-/kernel/kernel
+# 주의: racegrader/kernel/ 안에는 xv6-riscv 저장소 전체(Makefile, kernel/, user/, mkfs/ 등)가
+# 통째로 들어있어서, "kernel"이라는 이름이 소스 디렉터리(kernel/kernel/*.c)와
+# 빌드 결과물(kernel/kernel/kernel ELF) 양쪽에 다 쓰인다.
+# 예전처럼 "/kernel/kernel" 한 줄로 디렉터리 전체를 무시하면 그 안의 진짜 소스코드(.c)까지
+# 통째로 git에서 사라지므로, 반드시 파일 단위/확장자 단위로 지정한다.
+/kernel/kernel/*.o
+/kernel/kernel/*.d
+/kernel/kernel/*.asm
+/kernel/kernel/*.sym
+/kernel/kernel/kernel
+/kernel/user/_*
+/kernel/user/*.o
+/kernel/user/*.d
+/kernel/user/*.asm
+/kernel/user/*.sym
+/kernel/user/usys.S
+/kernel/mkfs/mkfs
+/kernel/mkfs/*.o
 /kernel/xv6.img
 /kernel/fs.img
 /kernel/.gdbinit
