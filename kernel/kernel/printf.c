@@ -133,10 +133,28 @@ printf(char *fmt, ...)
   return 0;
 }
 
+#ifndef CHAOS_SEED
+#define CHAOS_SEED 1
+#endif
+
+// RaceGrader: panic()을 매크로(defs.h)로 감싸서 모든 기존 panic() 호출부를
+// 하나도 안 건드리고 파일명/줄번호를 자동으로 주입한다. 실제 구현은 이
+// panic_impl()이 맡고, [RACEGRADER_FAIL] 태그 라인을 표준 출력으로 찍는다.
+// 형식: [RACEGRADER_FAIL] PANIC|file:line|SEED|PID|message
 void
-panic(char *s)
+panic_impl(char *s, const char *file, int line)
 {
+  struct proc *p;
+  int pid = -1;
+
   panicking = 1;
+
+  p = myproc();
+  if(p != 0)
+    pid = p->pid;
+
+  printf("[RACEGRADER_FAIL] PANIC|%s:%d|%d|%d|%s\n", file, line, CHAOS_SEED, pid, s);
+
   printf("panic: ");
   printf("%s\n", s);
   panicked = 1; // freeze uart output from other CPUs
