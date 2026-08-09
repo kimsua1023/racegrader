@@ -38,3 +38,4 @@ Thumbs.db
 # 자동 생성 리포트 (소스 아님)
 /reports/*.md
 !/reports/.gitkeep
+kernel/.seedstamp

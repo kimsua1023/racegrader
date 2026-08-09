@@ -177,6 +177,23 @@ CHAOS := 1
 endif
 CFLAGS += -DCHAOS_SEED=$(SEED) -DCHAOS_ENABLED=$(CHAOS)
 
+# --- RaceGrader: SEED/CHAOS 값이 바뀌면 make clean 없이도 관련 파일만
+# 자동 재컴파일되게 하는 sentinel 파일. make는 CFLAGS 내용이 바뀐 것 자체는
+# 감지하지 못하고 오직 파일 mtime만 보기 때문에, 이 장치가 없으면 SEED가
+# 바뀌어도 예전 오브젝트 파일이 조용히 재사용될 수 있다 (실제로 CLI 반복
+# 실행 테스트에서 17번째 시뮬레이션부터 이 현상이 재현되어 발견됨).
+SEEDSTAMP := .seedstamp
+CURRENT_SEED_SIG := SEED=$(SEED)_CHAOS=$(CHAOS)
+
+.PHONY: FORCE
+FORCE:
+
+$(SEEDSTAMP): FORCE
+	@echo "$(CURRENT_SEED_SIG)" | cmp -s - $@ 2>/dev/null || echo "$(CURRENT_SEED_SIG)" > $@
+
+# CHAOS_SEED/CHAOS_ENABLED 매크로를 실제로 참조하는 오브젝트만 sentinel에 의존시킴
+$K/printf.o $U/cow_test.o: $(SEEDSTAMP)
+
 QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
