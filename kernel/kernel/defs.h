@@ -57,6 +57,10 @@ void            ireclaim(int);
 
 // kalloc.c
 void*           kalloc(void);
+void            chaos_init(void);
+void            chaos_delay_before_lock(void);
+void            chaos_delay_after_unlock(void);
+void            chaos_shuffle(int*, int);
 void            krefinc(void*);
 int             kgetrefc(void*);
 int             cowhandler(pagetable_t, uint64);

@@ -21,6 +21,7 @@ initlock(struct spinlock *lk, char *name)
 void
 acquire(struct spinlock *lk)
 {
+  chaos_delay_before_lock();   // [CHAOS] 락 진입 직전(인터럽트 켜진 상태)에 확률적 지연
   push_off(); // disable interrupts to avoid deadlock.
   if(holding(lk))
     panic("acquire");
@@ -69,6 +70,7 @@ release(struct spinlock *lk)
   __sync_lock_release(&lk->locked);
 
   pop_off();
+  chaos_delay_after_unlock();  // [CHAOS] 락 해제 직후(인터럽트 복구된 상태)에 확률적 지연
 }
 
 // Check whether this cpu is holding the lock.
