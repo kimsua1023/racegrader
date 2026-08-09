@@ -10,10 +10,21 @@
 
 // ---------- pretty printing ----------
 static void die(const char *msg){ printf("%s\n", msg); exit(1); }
-static void passfail(const char *label, int pass){
+#ifndef CHAOS_SEED
+#define CHAOS_SEED 1
+#endif
+
+// RaceGrader: passfail()을 매크로로 감싸서 기존 호출부 전부 그대로 두고
+// __FILE__/__LINE__을 자동 주입한다 (panic() 패치와 동일한 방식).
+// 실패 시: [RACEGRADER_FAIL] ASSERT|file:line|SEED|PID|label
+static void passfail_impl(const char *label, int pass, const char *file, int line){
   printf("%s: %s\n", label, pass ? "OK" : "FAIL");
-  if(!pass) exit(1);
+  if(!pass){
+    printf("[RACEGRADER_FAIL] ASSERT|%s:%d|%d|%d|%s\n", file, line, CHAOS_SEED, getpid(), label);
+    exit(1);
+  }
 }
+#define passfail(label, pass) passfail_impl((label), (pass), __FILE__, __LINE__)
 static void line(void){ printf("------------------------------------------------------------\n"); }
 static void section(const char *title){ line(); printf("%s\n", title); line(); }
 
@@ -136,6 +147,7 @@ main(void)
 
     line();
     printf("== ALL COW CHECKS PASSED ==\n");
+    printf("[RACEGRADER_DONE] %d|%d\n", CHAOS_SEED, getpid());
     exit(0);
   }
 }
