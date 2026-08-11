@@ -1,0 +1,8 @@
+# <type>(<scope>): <subject>  (50자 이내, 명령형, 소문자 시작)
+#
+# <body>  (선택, 무엇을/왜 - 72자 줄바꿈 권장)
+#
+# <footer> (선택, 예: Closes #12)
+#
+# type: feat | fix | docs | refactor | test | chore | ci
+# scope: kernel | cli | ci | docs | license
