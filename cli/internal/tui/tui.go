@@ -383,10 +383,11 @@ func (m model) renderEndLog() string {
 
 func formatResultLine(r run.Result) string {
 	o := string(r.Outcome)
-	return fmt.Sprintf("  %s Simulation #%-4d  %s  %6s  %s",
+	return fmt.Sprintf("  %s Simulation #%-4d  %s  seed=%-4d  %6s  %s",
 		outcomeMark(o),
 		r.Index,
 		outcomePaint(o, fmt.Sprintf("%-7s", outcomeLabel(o))),
+		r.Seed,
 		formatDur(r.Duration),
 		styleDim(r.Detail),
 	)
