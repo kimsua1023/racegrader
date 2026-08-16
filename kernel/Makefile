@@ -192,7 +192,7 @@ $(SEEDSTAMP): FORCE
 	@echo "$(CURRENT_SEED_SIG)" | cmp -s - $@ 2>/dev/null || echo "$(CURRENT_SEED_SIG)" > $@
 
 # CHAOS_SEED/CHAOS_ENABLED 매크로를 실제로 참조하는 오브젝트만 sentinel에 의존시킴
-$K/printf.o $U/cow_test.o: $(SEEDSTAMP)
+$K/printf.o $U/cow_test.o $K/chaos.o: $(SEEDSTAMP)
 
 QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
