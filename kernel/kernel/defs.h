@@ -82,7 +82,8 @@ int             pipewrite(struct pipe*, uint64, int);
 
 // printf.c
 int             printf(char*, ...) __attribute__ ((format (printf, 1, 2)));
-void            panic(char*) __attribute__((noreturn));
+void            panic_impl(char*, const char*, int) __attribute__((noreturn));
+#define panic(s) panic_impl((s), __FILE__, __LINE__)
 void            printfinit(void);
 
 // proc.c
