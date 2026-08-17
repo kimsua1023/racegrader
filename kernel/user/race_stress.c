@@ -1,12 +1,20 @@
-// user/race_stress.c — RaceGrader concurrency stress test
+// user/race_stress.c — RaceGrader concurrency stress test (v2)
 //
-// 목적: 하나의 공유(COW) 페이지에 대해 여러 자식이 "거의 동시에" krefinc()/kfree()를
-// 건드리도록 몰아서, test/kernel-lock-missing / test/kernel-refcount-race 결함
-// 시나리오가 실제로 노출되는지 확인한다.
+// v1의 문제점(교훈으로 남김): 자식이 먼저 write해서 COW 분리(자기 전용 새
+// 페이지로 교체)해버리면, 공유 페이지의 kfree()는 "많은 참조자 중 하나가
+// 빠지는" 정도로만 refcount를 줄일 뿐, 실제로 0까지 내려가는 순간을 절대
+// 안 만든다 — 부모가 마지막까지 refcount==1인 채로 fast-path만 타고
+// kfree()를 한 번도 안 불렀기 때문이다. refcount-race 버그는 정확히
+// "카운트가 0으로 떨어지는 그 순간"에 두 프로세스가 동시에 도착해야
+// 재현되는데, v1은 그 순간 자체를 만든 적이 없다 (13->1까지만 내려감).
 //
-// cow_test.c는 fork()를 딱 한 번만 하는 "정답 검증용" 테스트라, refcount에 대한
-// 경쟁 상황 자체가 생기지 않는다 (경쟁할 상대가 없음). 이 프로그램은 그 반대로,
-// 정답 검증이 아니라 "경쟁 상황을 실제로 만드는 것"에만 집중한다.
+// v2: 자식들은 write를 아예 안 하고 곧바로 exit() 한다. 프로세스 종료 시
+// 커널이 그 프로세스가 매핑한 페이지에 자동으로 kfree()를 부르는데, 이번엔
+// write를 안 했으니 COW 분리 없이 "진짜 공유 페이지 그 자체"에 kfree()가
+// 걸린다. 부모도 자식들을 기다리지 않고 곧바로 자기 몫을 sbrk(-PGSIZE)로
+// 놓아버려서, 부모의 release가 자식들의 release와 진짜로 동시에 경쟁하게
+// 만든다 — refcount가 0을 향해 내려가는 마지막 순간에 여러 release가
+// 실제로 겹칠 기회를 만드는 것이 핵심이다.
 
 #include "kernel/types.h"
 #include "kernel/stat.h"
@@ -26,7 +34,6 @@ die(const char *msg)
   exit(1);
 }
 
-// cow_test.c와 동일한 [RACEGRADER_FAIL] ASSERT 형식으로 실패를 알린다.
 static void
 assert_impl(const char *label, int pass, const char *file, int line)
 {
@@ -45,40 +52,45 @@ main(void)
   if(p == (char*)-1)
     die("sbrk failed");
 
-  p[0] = 'A'; // 부모 소유의 페이지로 확실히 매핑시킴 (W=1, no COW)
+  p[0] = 'A'; // 페이지를 실제로 매핑시킴 (부모 단독 소유, refcount=1)
 
   int nkids = 0;
 
-  // 자식들을 하나씩 기다리지 않고 최대한 몰아서 fork.
-  // -> uvmcopy()의 krefinc() 호출들이 시간적으로 겹칠 기회를 최대화한다.
+  // 자식들을 최대한 몰아서 fork. 각 자식은 write 없이 곧바로 종료 ->
+  // exit()의 페이지 정리 과정이 공유 페이지에 직접 kfree()를 부르게 한다.
   for(int i = 0; i < NCHILD; i++){
     int pid = fork();
     if(pid < 0)
       break; // 자원이 모자라면 지금까지 만든 것만으로 계속 진행
 
     if(pid == 0){
-      // 자식: 곧바로 자기 몫에 쓰기 -> COW 분리(cowhandler -> kfree) 유발.
-      // 여러 자식이 "거의 동시에" 이걸 하면서 kfree()의 감소/0체크 구간에도
-      // 경쟁을 만든다.
-      p[0] = (char)('a' + (i % 26));
       exit(0);
     }
     nkids++;
   }
 
+  // 부모도 자식들을 기다리지 않고 곧바로 자기 몫을 놓아버린다.
+  // -> 부모의 release가 자식들이 한창 exit()하며 release하는 것과
+  //    시간적으로 겹치게 만드는 것이 핵심이다.
+  if(sbrk(-PGSIZE) == (char*)-1)
+    die("sbrk shrink failed");
+  // 주의: 이 시점부터 p를 더 이상 읽거나 쓰면 안 된다 (우리 쪽 use-after-free).
+
   for(int i = 0; i < nkids; i++)
     wait(0);
 
-  // 무결성 확인: 자식들은 전부 "자기 자신의 COW 분리된 복사본"에만 썼어야 하므로,
-  // 부모의 원본 페이지는 여전히 'A' 그대로여야 한다. lock-missing/refcount-race
-  // 버그로 인해 이 물리 페이지가 조기 반납되고 다른 용도로 재사용됐다면,
-  // 여기서 값이 달라져 있을 것이다.
-  check("[R1] parent page untouched by children after stress fork", p[0] == 'A');
+  // 여기까지 살아남았다는 것 자체가 이미 유의미한 신호(패닉/더블프리로
+  // 안 죽었다는 뜻). 추가로, 커널 할당자가 여전히 정상 동작하는지도
+  // 확인한다 — double-free로 freelist가 오염되면 이후 kalloc()이
+  // 이상하게 동작할 수 있기 때문에, 이건 이 특정 버그에 잘 맞는 사후검사다.
+  char *q = sbrk(PGSIZE);
+  check("[R3] allocator still works after stress (sbrk succeeds)", q != (char*)-1);
+  if(q != (char*)-1){
+    q[0] = 'X';
+    check("[R4] freshly allocated page is writable and holds written value", q[0] == 'X');
+  }
 
-  p[0] = 'Z'; // 부모도 마지막에 한 번 더 써서 fast-path(kgetrefc==1)도 건드려본다.
-  check("[R2] parent write after stress succeeds", p[0] == 'Z');
-
-  printf("race_stress: %d children forked/joined\n", nkids);
+  printf("race_stress: %d children forked, all released shared page concurrently\n", nkids);
   printf("[RACEGRADER_DONE] %d|%d\n", CHAOS_SEED, getpid());
   exit(0);
 }
