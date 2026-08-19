@@ -19,6 +19,9 @@ var (
 	flagSeed     int64
 	flagOut      string
 	flagSkipBoot bool
+	flagCPUs     int
+	flagChaos    int
+	flagCommand  string
 )
 
 var runCmd = &cobra.Command{
@@ -32,6 +35,7 @@ A plain-text report is written to --out when the session finishes.
 The default is racegrader-<timestamp>.log in the current working directory.`,
 	Example: `  racegrader run --kernel ../kernel --repeat 500 --timeout 10
   racegrader run --kernel ../kernel --repeat 100 --timeout 5 --seed 42
+  racegrader run --kernel ../kernel --cpus 2 --chaos 1 --command cow_test
   racegrader run --kernel ../kernel --repeat 50 --out ./my-run.log
   racegrader run --kernel ../kernel --skip-boot`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -47,7 +51,10 @@ func init() {
 	runCmd.Flags().StringVar(&flagKernel, "kernel", "", "Path to the xv6 tree under test (required)")
 	runCmd.Flags().IntVar(&flagRepeat, "repeat", 100, "How many simulations to run")
 	runCmd.Flags().IntVar(&flagTimeout, "timeout", 30, "Per-run timeout in seconds (aborts remaining runs)")
-	runCmd.Flags().Int64Var(&flagSeed, "seed", 0, "RNG seed for Replay (0 = unset; reserved)")
+	runCmd.Flags().Int64Var(&flagSeed, "seed", 0, "Base CHAOS_SEED for make qemu (0 = time-based; each run uses seed+i-1)")
+	runCmd.Flags().IntVar(&flagCPUs, "cpus", 2, "SMP CPUs passed to make qemu (CPUS=)")
+	runCmd.Flags().IntVar(&flagChaos, "chaos", 1, "Chaos engine toggle passed to make qemu (CHAOS=)")
+	runCmd.Flags().StringVar(&flagCommand, "command", "cow_test", "xv6 shell command to run each simulation")
 	runCmd.Flags().StringVar(&flagOut, "out", "", "Run report path (default: ./racegrader-<timestamp>.log)")
 	runCmd.Flags().BoolVar(&flagSkipBoot, "skip-boot", false, "Skip the boot splash screen")
 
@@ -61,6 +68,12 @@ func buildConfig() (run.Config, error) {
 	}
 	if flagTimeout < 1 {
 		return run.Config{}, die("--timeout must be >= 1")
+	}
+	if flagCPUs < 1 {
+		return run.Config{}, die("--cpus must be >= 1")
+	}
+	if flagChaos != 0 && flagChaos != 1 {
+		return run.Config{}, die("--chaos must be 0 or 1")
 	}
 
 	abs, err := filepath.Abs(flagKernel)
@@ -87,5 +100,8 @@ func buildConfig() (run.Config, error) {
 		Seed:     flagSeed,
 		Out:      outPath,
 		SkipBoot: flagSkipBoot,
+		CPUs:     flagCPUs,
+		Chaos:    flagChaos,
+		Command:  flagCommand,
 	}, nil
 }

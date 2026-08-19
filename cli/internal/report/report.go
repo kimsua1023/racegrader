@@ -58,8 +58,11 @@ func Write(path string, s Summary) error {
 	fmt.Fprintf(&b, "Kernel:   %s\n", s.Config.Kernel)
 	fmt.Fprintf(&b, "Repeat:   %d\n", s.Config.Repeat)
 	fmt.Fprintf(&b, "Timeout:  %ds\n", s.Config.Timeout)
+	fmt.Fprintf(&b, "CPUs:     %d\n", s.Config.CPUs)
+	fmt.Fprintf(&b, "Chaos:    %d\n", s.Config.Chaos)
+	fmt.Fprintf(&b, "Command:  %s\n", s.Config.Command)
 	if s.Config.Seed == 0 {
-		b.WriteString("Seed:     unset\n")
+		b.WriteString("Seed:     unset (time-based base)\n")
 	} else {
 		fmt.Fprintf(&b, "Seed:     %d\n", s.Config.Seed)
 	}
@@ -78,8 +81,8 @@ func Write(path string, s Summary) error {
 	b.WriteString(rule)
 	b.WriteByte('\n')
 	for _, r := range s.Results {
-		fmt.Fprintf(&b, "Simulation #%-4d  %-7s  %8s  %s\n",
-			r.Index, outcomeLabel(r.Outcome), r.Duration.Round(time.Millisecond), r.Detail)
+		fmt.Fprintf(&b, "Simulation #%-4d  %-7s  seed=%-4d  %8s  %s\n",
+			r.Index, outcomeLabel(r.Outcome), r.Seed, r.Duration.Round(time.Millisecond), r.Detail)
 	}
 	return os.WriteFile(path, []byte(b.String()), 0o644)
 }
