@@ -1,4 +1,9 @@
-// user/race_stress.c — RaceGrader concurrency stress test (v3: pipe barrier)
+// user/race_stress.c — RaceGrader concurrency stress test (v4: 반복 루프)
+//
+// v3까지의 문제: QEMU 재부팅 1회당 경쟁 시도가 딱 1번뿐이라, 부팅 오버헤드
+// 대비 "진짜 승부의 순간"이 너무 적었다. genuine SMP는 smp_check.c로 이미
+// 확인됨(직렬 아님) — 그럼 남은 건 시도 횟수 자체를 늘리는 것뿐이다.
+// v4는 같은 부팅 안에서 pipe 바리어 경쟁 라운드를 ROUNDS번 반복한다.
 //
 // v2의 문제(추정): 부모가 fork 루프를 다 돈 뒤에야 자기 몫을 release했는데,
 // 그 사이 자식들(write 없이 바로 exit)이 이미 대부분 먼저 끝나서 서로 안
@@ -39,8 +44,10 @@ assert_impl(const char *label, int pass, const char *file, int line)
 }
 #define check(label, pass) assert_impl((label), (pass), __FILE__, __LINE__)
 
-int
-main(void)
+#define ROUNDS 40
+
+static int
+do_round(int round)
 {
   char *p = sbrk(PGSIZE);
   if(p == (char*)-1)
@@ -91,12 +98,25 @@ main(void)
   for(int i = 0; i < nkids; i++)
     wait(0);
 
-  // 커널 할당자가 여전히 정상 동작하는지 사후검사.
-  // R3/R4(한 번 더 할당해서 쓰고 읽어보기)만으로는 부족하다: double-free로
-  // freelist가 자기 자신을 가리키는 self-loop가 되면, kalloc()이 매번
-  // "정상적으로 보이는" 같은 물리 페이지를 계속 재활용해서 내주기 때문에
-  // 단 한 번의 확인으로는 절대 못 잡는다. 여러 번 할당해서 물리 주소가
-  // 겹치는 게 있는지를 직접 확인해야, 이 특정 오염 패턴을 잡을 수 있다.
+  // 부모가 이번 라운드에서 계속 쓰던 fd들을 명시적으로 닫는다.
+  // 안 닫으면 라운드가 반복될 때마다 누적돼서, xv6의 프로세스당 열린
+  // 파일 개수 제한(NOFILE)에 금방 부딪혀 이후 라운드의 pipe()가 실패한다.
+  close(readyfd[0]);
+  close(gofd[1]);
+
+  return nkids;
+}
+
+int
+main(void)
+{
+  for(int round = 0; round < ROUNDS; round++){
+    do_round(round);
+  }
+
+  // 커널 할당자가 여전히 정상 동작하는지 사후검사 (ROUNDS번 다 돌고 나서
+  // 최종적으로 한 번). R3/R4만으론 부족해서(self-loop 오염을 원리상 못
+  // 잡음) R5까지 같이 확인한다.
   char *q = sbrk(PGSIZE);
   check("[R3] allocator still works after stress (sbrk succeeds)", q != (char*)-1);
   if(q != (char*)-1){
@@ -112,7 +132,7 @@ main(void)
     char *r = sbrk(PGSIZE);
     if(r == (char*)-1)
       break;
-    r[0] = 'Y'; // 실제 매핑 확정
+    r[0] = 'Y';
     uint64 pa = ptepa((void*)r);
     for(int j = 0; j < allocated; j++){
       if(pas[j] == pa)
@@ -122,7 +142,7 @@ main(void)
   }
   check("[R5] no duplicate physical pages among fresh allocations (freelist not corrupted into a self-loop)", !dup_found);
 
-  printf("race_stress: %d racers synchronized via pipe barrier, released concurrently\n", nkids);
+  printf("race_stress: %d rounds x pipe-barrier racers completed\n", ROUNDS);
   printf("[RACEGRADER_DONE] %d|%d\n", CHAOS_SEED, getpid());
   exit(0);
 }
