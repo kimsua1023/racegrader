@@ -146,6 +146,8 @@ UPROGS=\
 	$U/_mprotect_test\
 	$U/_cow_test\
 	$U/_race_stress\
+	$U/_smp_check\
+	$U/_smp_check\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
