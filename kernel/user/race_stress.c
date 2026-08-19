@@ -1,19 +1,17 @@
-// user/race_stress.c — RaceGrader concurrency stress test (v4: 반복 루프)
+// user/race_stress.c — RaceGrader concurrency stress test (v5)
 //
-// v3까지의 문제: QEMU 재부팅 1회당 경쟁 시도가 딱 1번뿐이라, 부팅 오버헤드
-// 대비 "진짜 승부의 순간"이 너무 적었다. genuine SMP는 smp_check.c로 이미
-// 확인됨(직렬 아님) — 그럼 남은 건 시도 횟수 자체를 늘리는 것뿐이다.
-// v4는 같은 부팅 안에서 pipe 바리어 경쟁 라운드를 ROUNDS번 반복한다.
+// v2/v3/v4의 근본 문제 발견: kwait()이 전역 락(wait_lock, 프로세스별이
+// 아니라 시스템 전체에 하나)을 쥔 채로 freeproc()->kfree()를 호출한다.
+// 즉 exit()/wait() 경로로 유발되는 kfree()는 이 전역 락 때문에 애초에
+// 동시에 두 개가 진행될 수 없다 -- 바리어를 아무리 정교하게 만들어도
+// 소용없었던 이유가 이것이다.
 //
-// v2의 문제(추정): 부모가 fork 루프를 다 돈 뒤에야 자기 몫을 release했는데,
-// 그 사이 자식들(write 없이 바로 exit)이 이미 대부분 먼저 끝나서 서로 안
-// 겹치고 순서대로 release가 끝났을 가능성이 높다. "각자 알아서 빨리 끝내기"
-// 방식으로는 진짜 "동시"를 보장할 수 없다.
-//
-// v3: pipe 2개로 바리어(barrier)를 만든다. 모든 참가자(자식들 + 부모)를
-// 먼저 "준비 완료" 상태로 만들어놓고, 부모가 한꺼번에 "출발" 신호를 보내는
-// 바로 그 순간 다 같이 release를 시도하게 강제한다 — 우연히 타이밍이
-//맞기를 기다리지 않고, 동시성을 직접 설계해서 만든다.
+// v5: kfree()로 가는 또 다른 경로인 cowhandler()(write fault로 유발되는
+// COW 분리)를 쓴다. 이건 전역 락을 거치지 않고 각 프로세스가 독립적으로
+// write fault를 처리하며 kfree()를 부른다 -- 진짜 경쟁이 가능한 경로다.
+// v1이 이 경로를 썼었지만 그때는 부모가 끝까지 자기 몫을 안 놓아서
+// refcount가 0에 안 닿는 문제가 있었다. v5는 부모도 exit이 아니라
+// write로, 자식들과 함께 파이프 바리어를 통해 동시에 참여시킨다.
 
 #include "kernel/types.h"
 #include "kernel/stat.h"
@@ -25,6 +23,7 @@
 #endif
 
 #define NRACERS 8
+#define ROUNDS 40
 
 static void
 die(const char *msg)
@@ -43,8 +42,6 @@ assert_impl(const char *label, int pass, const char *file, int line)
   }
 }
 #define check(label, pass) assert_impl((label), (pass), __FILE__, __LINE__)
-
-#define ROUNDS 40
 
 static int
 do_round(int round)
@@ -70,40 +67,35 @@ do_round(int round)
       close(gofd[1]);
       char c = 'r';
       write(readyfd[1], &c, 1); // 준비 완료 알림
-      read(gofd[0], &c, 1);     // 출발 신호 대기 (여기서 다 같이 멈춰있음)
-      exit(0);                  // 신호 받는 즉시 전원 동시 종료 -> kfree() 경쟁
+      read(gofd[0], &c, 1);     // 출발 신호 대기
+      // exit()이 아니라 write로 COW 분리를 유발 -> cowhandler() -> kfree()
+      // (전역 락 없이 독립적으로 실행되는, 진짜 경쟁 가능한 경로)
+      p[0] = (char)('a' + (round % 26));
+      exit(0);
     }
     nkids++;
   }
   close(readyfd[1]);
   close(gofd[0]);
 
-  // 자식들이 전부 "준비 완료" 상태(출발선에 서서 대기 중)가 될 때까지 기다린다.
   for(int i = 0; i < nkids; i++){
     char c;
     read(readyfd[0], &c, 1);
   }
 
-  // 부모도 자기 몫을 놓아버린다 -- 자식들에게 출발 신호를 주기 직전에 먼저
-  // 실행해서, 부모의 release도 이 "동시 출발" 그룹에 최대한 가깝게 포함시킨다.
-  if(sbrk(-PGSIZE) == (char*)-1)
-    die("sbrk shrink failed");
-
-  // 전 자식에게 동시에 출발 신호 -> 전부 한꺼번에 깨어나 exit() (kfree 경쟁)
+  // 자식들에게 출발 신호를 먼저 보내고, 부모도 곧바로 자기 몫을 write
+  // -> 부모의 cowhandler()/kfree()도 자식들과 "동시에" 경쟁에 참여
   for(int i = 0; i < nkids; i++){
     char c = 'g';
     write(gofd[1], &c, 1);
   }
+  p[0] = 'Z';
 
   for(int i = 0; i < nkids; i++)
     wait(0);
 
-  // 부모가 이번 라운드에서 계속 쓰던 fd들을 명시적으로 닫는다.
-  // 안 닫으면 라운드가 반복될 때마다 누적돼서, xv6의 프로세스당 열린
-  // 파일 개수 제한(NOFILE)에 금방 부딪혀 이후 라운드의 pipe()가 실패한다.
   close(readyfd[0]);
   close(gofd[1]);
-
   return nkids;
 }
 
@@ -114,9 +106,6 @@ main(void)
     do_round(round);
   }
 
-  // 커널 할당자가 여전히 정상 동작하는지 사후검사 (ROUNDS번 다 돌고 나서
-  // 최종적으로 한 번). R3/R4만으론 부족해서(self-loop 오염을 원리상 못
-  // 잡음) R5까지 같이 확인한다.
   char *q = sbrk(PGSIZE);
   check("[R3] allocator still works after stress (sbrk succeeds)", q != (char*)-1);
   if(q != (char*)-1){
@@ -142,7 +131,7 @@ main(void)
   }
   check("[R5] no duplicate physical pages among fresh allocations (freelist not corrupted into a self-loop)", !dup_found);
 
-  printf("race_stress: %d rounds x pipe-barrier racers completed\n", ROUNDS);
+  printf("race_stress: %d rounds x write-triggered cowhandler racers completed\n", ROUNDS);
   printf("[RACEGRADER_DONE] %d|%d\n", CHAOS_SEED, getpid());
   exit(0);
 }
