@@ -91,14 +91,36 @@ main(void)
   for(int i = 0; i < nkids; i++)
     wait(0);
 
-  // 커널 할당자가 여전히 정상 동작하는지 사후검사 (double-free로 freelist가
-  // 오염되면 이후 kalloc()이 이상 동작할 수 있음)
+  // 커널 할당자가 여전히 정상 동작하는지 사후검사.
+  // R3/R4(한 번 더 할당해서 쓰고 읽어보기)만으로는 부족하다: double-free로
+  // freelist가 자기 자신을 가리키는 self-loop가 되면, kalloc()이 매번
+  // "정상적으로 보이는" 같은 물리 페이지를 계속 재활용해서 내주기 때문에
+  // 단 한 번의 확인으로는 절대 못 잡는다. 여러 번 할당해서 물리 주소가
+  // 겹치는 게 있는지를 직접 확인해야, 이 특정 오염 패턴을 잡을 수 있다.
   char *q = sbrk(PGSIZE);
   check("[R3] allocator still works after stress (sbrk succeeds)", q != (char*)-1);
   if(q != (char*)-1){
     q[0] = 'X';
     check("[R4] freshly allocated page is writable and holds written value", q[0] == 'X');
   }
+
+#define NCHECK 8
+  uint64 pas[NCHECK];
+  int dup_found = 0;
+  int allocated = 0;
+  for(int i = 0; i < NCHECK; i++){
+    char *r = sbrk(PGSIZE);
+    if(r == (char*)-1)
+      break;
+    r[0] = 'Y'; // 실제 매핑 확정
+    uint64 pa = ptepa((void*)r);
+    for(int j = 0; j < allocated; j++){
+      if(pas[j] == pa)
+        dup_found = 1;
+    }
+    pas[allocated++] = pa;
+  }
+  check("[R5] no duplicate physical pages among fresh allocations (freelist not corrupted into a self-loop)", !dup_found);
 
   printf("race_stress: %d racers synchronized via pipe barrier, released concurrently\n", nkids);
   printf("[RACEGRADER_DONE] %d|%d\n", CHAOS_SEED, getpid());
