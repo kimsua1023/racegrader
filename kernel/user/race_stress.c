@@ -22,7 +22,7 @@
 #define CHAOS_SEED 1
 #endif
 
-#define NRACERS 8
+#define NRACERS 16
 #define ROUNDS 40
 
 static void
