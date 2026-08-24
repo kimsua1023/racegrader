@@ -145,6 +145,9 @@ UPROGS=\
 	$U/_dorphan\
 	$U/_mprotect_test\
 	$U/_cow_test\
+	$U/_race_stress\
+	$U/_smp_check\
+	$U/_smp_check\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
@@ -175,7 +178,14 @@ endif
 ifndef CHAOS
 CHAOS := 1
 endif
+ifndef CHAOS_PROB_PERCENT
+CHAOS_PROB_PERCENT := 30
+endif
+ifndef CHAOS_MAX_SPIN
+CHAOS_MAX_SPIN := 2000
+endif
 CFLAGS += -DCHAOS_SEED=$(SEED) -DCHAOS_ENABLED=$(CHAOS)
+CFLAGS += -DCHAOS_PROB_PERCENT=$(CHAOS_PROB_PERCENT) -DCHAOS_MAX_SPIN=$(CHAOS_MAX_SPIN)
 
 # --- RaceGrader: SEED/CHAOS 값이 바뀌면 make clean 없이도 관련 파일만
 # 자동 재컴파일되게 하는 sentinel 파일. make는 CFLAGS 내용이 바뀐 것 자체는
@@ -183,7 +193,7 @@ CFLAGS += -DCHAOS_SEED=$(SEED) -DCHAOS_ENABLED=$(CHAOS)
 # 바뀌어도 예전 오브젝트 파일이 조용히 재사용될 수 있다 (실제로 CLI 반복
 # 실행 테스트에서 17번째 시뮬레이션부터 이 현상이 재현되어 발견됨).
 SEEDSTAMP := .seedstamp
-CURRENT_SEED_SIG := SEED=$(SEED)_CHAOS=$(CHAOS)
+CURRENT_SEED_SIG := SEED=$(SEED)_CHAOS=$(CHAOS)_PROB=$(CHAOS_PROB_PERCENT)_SPIN=$(CHAOS_MAX_SPIN)
 
 .PHONY: FORCE
 FORCE:
@@ -192,7 +202,7 @@ $(SEEDSTAMP): FORCE
 	@echo "$(CURRENT_SEED_SIG)" | cmp -s - $@ 2>/dev/null || echo "$(CURRENT_SEED_SIG)" > $@
 
 # CHAOS_SEED/CHAOS_ENABLED 매크로를 실제로 참조하는 오브젝트만 sentinel에 의존시킴
-$K/printf.o $U/cow_test.o $K/chaos.o: $(SEEDSTAMP)
+$K/printf.o $U/cow_test.o $K/chaos.o $U/race_stress.o: $(SEEDSTAMP)
 
 QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
