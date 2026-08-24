@@ -61,6 +61,9 @@ chaos_init(void)
 }
 
 // xorshift32. CPU별 상태만 건드리므로 락이 필요 없다.
+// 호출부가 전부 #if CHAOS_ENABLED 안에 있으므로, CHAOS_ENABLED=0일 때
+// unused-function 경고(-Werror)가 나지 않도록 정의 자체도 같은 가드로 감싼다.
+#if CHAOS_ENABLED
 static uint32
 chaos_rand(void)
 {
@@ -83,6 +86,7 @@ chaos_spin(uint32 iters)
   for(i = 0; i < iters; i++)
     ;
 }
+#endif
 
 // acquire() 진입 "직전"(아직 인터럽트가 켜져 있는 시점)에 호출.
 void
