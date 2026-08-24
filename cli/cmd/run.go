@@ -28,18 +28,15 @@ var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run repeated kernel simulations and open the live TUI",
 	Long: `Run launches the Bubble Tea UI and walks through --repeat simulations
-against the xv6 tree at --kernel. Each run boots qemu with make SEED/CHAOS/CPUS,
-runs --command (default cow_test), and classifies results from RaceGrader markers.
-Each run is killed if it exceeds --timeout seconds; when that happens the
-remaining repeats are skipped.
+against the xv6 tree at --kernel. Each run is killed if it exceeds --timeout
+seconds; when that happens the remaining repeats are skipped.
 
-A Markdown report is written to --out when the session finishes.
-The default is racegrader-<timestamp>.md in the current working directory.`,
+A plain-text report is written to --out when the session finishes.
+The default is racegrader-<timestamp>.log in the current working directory.`,
 	Example: `  racegrader run --kernel ../kernel --repeat 500 --timeout 10
   racegrader run --kernel ../kernel --repeat 100 --timeout 5 --seed 42
   racegrader run --kernel ../kernel --cpus 2 --chaos 1 --command cow_test
-  racegrader run --kernel ../kernel --command "kill 1" --repeat 3
-  racegrader run --kernel ../kernel --repeat 50 --out ./my-run.md
+  racegrader run --kernel ../kernel --repeat 50 --out ./my-run.log
   racegrader run --kernel ../kernel --skip-boot`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := buildConfig()
@@ -58,7 +55,7 @@ func init() {
 	runCmd.Flags().IntVar(&flagCPUs, "cpus", 2, "SMP CPUs passed to make qemu (CPUS=)")
 	runCmd.Flags().IntVar(&flagChaos, "chaos", 1, "Chaos engine toggle passed to make qemu (CHAOS=)")
 	runCmd.Flags().StringVar(&flagCommand, "command", "cow_test", "xv6 shell command to run each simulation")
-	runCmd.Flags().StringVar(&flagOut, "out", "", "Run report path (default: ./racegrader-<timestamp>.md)")
+	runCmd.Flags().StringVar(&flagOut, "out", "", "Run report path (default: ./racegrader-<timestamp>.log)")
 	runCmd.Flags().BoolVar(&flagSkipBoot, "skip-boot", false, "Skip the boot splash screen")
 
 	_ = runCmd.MarkFlagRequired("kernel")
