@@ -8,9 +8,11 @@
 
 | 항목 | 내용 |
 |---|---|
-| 원본 라이선스 | (SPDX 식별자 확인 후 기입) |
-| 처리 방법 | 원본 LICENSE 파일 및 소스 상단 주석 그대로 유지 |
-| 확인일 | (작성 예정) |
+| 원본 라이선스 | MIT License (SPDX: MIT) |
+| 저작권자 | Frans Kaashoek, Robert Morris, Russ Cox, Massachusetts Institute of Technology (2006-2024) |
+| 출처 | https://github.com/mit-pdos/xv6-riscv |
+| 처리 방법 | 원본 LICENSE 파일(`kernel/LICENSE`) 및 소스 상단 주석 그대로 유지 |
+| 확인일 | 2026-08-24 |
 | 확인자 | 정수민 |
 
 ## Go 의존성 (`cli/`)
