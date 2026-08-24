@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"racegrader/cli/internal/headless"
 	"racegrader/cli/internal/report"
 	"racegrader/cli/internal/run"
 	"racegrader/cli/internal/tui"
@@ -19,6 +20,7 @@ var (
 	flagSeed     int64
 	flagOut      string
 	flagSkipBoot bool
+	flagHeadless bool
 	flagCPUs     int
 	flagChaos    int
 	flagCommand  string
@@ -26,22 +28,25 @@ var (
 
 var runCmd = &cobra.Command{
 	Use:   "run",
-	Short: "Run repeated kernel simulations and open the live TUI",
-	Long: `Run launches the Bubble Tea UI and walks through --repeat simulations
-against the xv6 tree at --kernel. Each run is killed if it exceeds --timeout
-seconds; when that happens the remaining repeats are skipped.
+	Short: "Run repeated kernel simulations",
+	Long: `Run walks through --repeat simulations against the xv6 tree at --kernel.
+Each run is killed if it exceeds --timeout seconds; when that happens the
+remaining repeats are skipped.
 
-A plain-text report is written to --out when the session finishes.
-The default is racegrader-<timestamp>.log in the current working directory.`,
-	Example: `  racegrader run --kernel ../kernel --repeat 500 --timeout 10
+Use --headless for CI (plain stderr progress, no Bubble Tea terminal UI).
+A report is written to --out when the session finishes.`,
+	Example: `  racegrader run --kernel ../kernel --repeat 500 --timeout 10 --headless
   racegrader run --kernel ../kernel --repeat 100 --timeout 5 --seed 42
   racegrader run --kernel ../kernel --cpus 2 --chaos 1 --command cow_test
-  racegrader run --kernel ../kernel --repeat 50 --out ./my-run.log
+  racegrader run --kernel ../kernel --repeat 50 --out ./my-run.log --headless
   racegrader run --kernel ../kernel --skip-boot`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := buildConfig()
 		if err != nil {
 			return err
+		}
+		if flagHeadless {
+			return headless.Run(cfg)
 		}
 		return tui.Start(cfg)
 	},
@@ -56,7 +61,8 @@ func init() {
 	runCmd.Flags().IntVar(&flagChaos, "chaos", 1, "Chaos engine toggle passed to make qemu (CHAOS=)")
 	runCmd.Flags().StringVar(&flagCommand, "command", "cow_test", "xv6 shell command to run each simulation")
 	runCmd.Flags().StringVar(&flagOut, "out", "", "Run report path (default: ./racegrader-<timestamp>.log)")
-	runCmd.Flags().BoolVar(&flagSkipBoot, "skip-boot", false, "Skip the boot splash screen")
+	runCmd.Flags().BoolVar(&flagSkipBoot, "skip-boot", false, "Skip the boot splash screen (TUI only)")
+	runCmd.Flags().BoolVar(&flagHeadless, "headless", false, "Headless mode for CI (no interactive terminal UI)")
 
 	_ = runCmd.MarkFlagRequired("kernel")
 	rootCmd.AddCommand(runCmd)
