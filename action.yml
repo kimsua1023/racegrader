@@ -13,7 +13,7 @@ inputs:
   repeat:
     description: Number of simulations
     required: false
-    default: "500"
+    default: "50"
   timeout:
     description: Per-simulation timeout in seconds
     required: false
