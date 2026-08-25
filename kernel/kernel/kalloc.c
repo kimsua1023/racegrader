@@ -55,10 +55,6 @@ kgetrefc(void *pa)
   return c;
 }
 
-// TODO: implement per-page reference counting for CoW fork.
-// - increase count in kalloc()
-// - decrease/free in kfree()
-
 void
 kinit()
 {
