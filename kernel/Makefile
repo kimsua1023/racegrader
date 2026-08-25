@@ -145,6 +145,7 @@ UPROGS=\
 	$U/_dorphan\
 	$U/_cow_test\
 	$U/_race_stress\
+	$U/_fork_race\
 	$U/_smp_check\
 	$U/_smp_check\
 
@@ -201,7 +202,7 @@ $(SEEDSTAMP): FORCE
 	@echo "$(CURRENT_SEED_SIG)" | cmp -s - $@ 2>/dev/null || echo "$(CURRENT_SEED_SIG)" > $@
 
 # CHAOS_SEED/CHAOS_ENABLED 매크로를 실제로 참조하는 오브젝트만 sentinel에 의존시킴
-$K/printf.o $U/cow_test.o $K/chaos.o $U/race_stress.o: $(SEEDSTAMP)
+$K/printf.o $U/cow_test.o $K/chaos.o $U/race_stress.o $U/fork_race.o: $(SEEDSTAMP)
 
 QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
