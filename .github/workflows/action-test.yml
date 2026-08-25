@@ -1,0 +1,51 @@
+name: RaceGrader Action Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      repeat:
+        description: Number of simulations
+        required: false
+        default: "500"
+      timeout:
+        description: Per-simulation timeout (seconds)
+        required: false
+        default: "30"
+      command:
+        description: xv6 command to run
+        required: false
+        default: cow_test
+      seed:
+        description: CHAOS_SEED (0 = time-based)
+        required: false
+        default: "0"
+      chaos:
+        description: Chaos engine (0 or 1)
+        required: false
+        default: "1"
+      cpus:
+        description: SMP CPUs
+        required: false
+        default: "8"
+
+jobs:
+  run-action:
+    name: RaceGrader action execution
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Run RaceGrader action
+        uses: ./
+        with:
+          kernel_path: kernel
+          repeat: ${{ inputs.repeat || '500' }}
+          timeout: ${{ inputs.timeout || '30' }}
+          command: ${{ inputs.command || 'cow_test' }}
+          seed: ${{ inputs.seed || '0' }}
+          chaos: ${{ inputs.chaos || '1' }}
+          cpus: ${{ inputs.cpus || '8' }}
+          write_summary: "true"

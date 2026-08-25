@@ -1,0 +1,58 @@
+name: RaceGrader
+description: Run RaceGrader repeated xv6 kernel simulations in CI.
+author: kimsua1023, jungsumin17, muju03
+inputs:
+  kernel_path:
+    description: Path to the xv6 kernel tree (relative to working_directory)
+    required: false
+    default: kernel
+  working_directory:
+    description: Subdirectory of the user's repo to run from.
+    required: false
+    default: .
+  repeat:
+    description: Number of simulations
+    required: false
+    default: "100"
+  timeout:
+    description: Per-simulation timeout in seconds
+    required: false
+    default: "30"
+  seed:
+    description: Base CHAOS_SEED (0 = time-based)
+    required: false
+    default: "0"
+  cpus:
+    description: SMP CPUs
+    required: false
+    default: "2"
+  chaos:
+    description: Chaos engine toggle (0 or 1)
+    required: false
+    default: "1"
+  command:
+    description: xv6 shell command each simulation (e.g. cow_test)
+    required: false
+    default: cow_test
+  out:
+    description: Optional workspace path for a report file (leave empty to only use GitHub Job Summary)
+    required: false
+    default: ""
+  write_summary:
+    description: Write results to the GitHub Job Summary (shown on the Actions run page)
+    required: false
+    default: "true"
+outputs:
+  result:
+    description: pass or fail
+  report_path:
+    description: Absolute path to the report file when out was set; empty otherwise
+  passes:
+    description: Passing simulations
+  failures:
+    description: Failed simulations (includes timeouts)
+  timeouts:
+    description: Timed-out simulations
+runs:
+  using: docker
+  image: Dockerfile
