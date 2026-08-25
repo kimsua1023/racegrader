@@ -13,7 +13,7 @@ inputs:
   repeat:
     description: Number of simulations
     required: false
-    default: "100"
+    default: "500"
   timeout:
     description: Per-simulation timeout in seconds
     required: false
@@ -25,7 +25,7 @@ inputs:
   cpus:
     description: SMP CPUs
     required: false
-    default: "2"
+    default: "8"
   chaos:
     description: Chaos engine toggle (0 or 1)
     required: false
