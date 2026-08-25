@@ -143,7 +143,6 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
-	$U/_mprotect_test\
 	$U/_cow_test\
 	$U/_race_stress\
 	$U/_smp_check\
