@@ -40,12 +40,9 @@ pa2idx(uint64 pa)
 void
 krefinc(void *pa)
 {
-  // [BUG-INJECTED: lock-missing] 의도적으로 refcnt.lock 보호를 제거함.
-  // fork()가 여러 프로세스에서 거의 동시에 일어나면 이 증가 연산(read-modify-write)이
-  // 겹쳐서 증가분 하나가 유실될 수 있다 (lost update). 그 결과 실제 참조자 수보다
-  // refcount가 낮게 기록되어, 자식 중 하나가 exit할 때 아직 다른 프로세스가 쓰고
-  // 있는 페이지를 kfree()가 진짜로 반납해버리는 use-after-free로 이어진다.
+  acquire(&refcnt.lock);
   refcnt.count[pa2idx((uint64)pa)]++;
+  release(&refcnt.lock);
 }
 
 int
@@ -91,33 +88,21 @@ kfree(void *pa)
 {
   struct run *r;
   int idx;
-  int should_free;
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
 
   idx = pa2idx((uint64)pa);
 
-  // [BUG-INJECTED: refcount-race] 원래는 "감소"와 "0인지 확인"을 하나의
-  // critical section으로 묶어야 하는데, 여기서는 두 개의 별도 acquire/release
-  // 구간으로 쪼갰다. 두 구간 사이에 다른 CPU의 kfree()가 끼어들 수 있는
-  // 타이밍 틈(race window)이 생긴다.
   acquire(&refcnt.lock);
   if(refcnt.count[idx] < 1)
     panic("kfree: refcount underflow");
   refcnt.count[idx]--;
-  release(&refcnt.lock);
-
-  // <-- RACE WINDOW: 여기서 다른 프로세스의 kfree()가 끼어들면, 두 호출 모두
-  // "내가 마지막 참조자다(count==0)"라고 착각해 같은 페이지를 두 번 반납
-  // (double-free)할 수 있다.
-
-  acquire(&refcnt.lock);
-  should_free = (refcnt.count[idx] == 0);
-  release(&refcnt.lock);
-
-  if(!should_free)
+  if(refcnt.count[idx] > 0){
+    release(&refcnt.lock);
     return;
+  }
+  release(&refcnt.lock);
 
   memset(pa, 1, PGSIZE);
   r = (struct run*)pa;
