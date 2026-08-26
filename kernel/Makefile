@@ -144,6 +144,8 @@ UPROGS=\
 	$U/_dorphan\
 	$U/_mprotect_test\
 	$U/_cow_test\
+	$U/_race_stress\
+	$U/_fork_race\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
