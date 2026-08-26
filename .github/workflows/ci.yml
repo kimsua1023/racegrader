@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: "1.26"
       - run: go build ./...
       - run: go vet ./...
 
@@ -27,13 +27,15 @@ jobs:
     defaults:
       run:
         working-directory: ./cli
+    env:
+      GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: "1.26"
       - run: go install github.com/google/go-licenses@latest
-      - run: go-licenses check ./... --disallowed_types=forbidden,restricted
+      - run: go-licenses check ./... --disallowed_types=forbidden,restricted --ignore=racegrader/cli
 
   kernel-build:
     name: Kernel build
