@@ -1,6 +1,9 @@
 name: RaceGrader
 description: Run RaceGrader repeated xv6 kernel simulations in CI.
 author: kimsua1023, jungsumin17, muju03
+branding:
+  icon: 'repeat'
+  color: 'gray-dark'
 inputs:
   kernel_path:
     description: Path to the xv6 kernel tree (relative to working_directory)
