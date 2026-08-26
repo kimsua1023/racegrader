@@ -48,7 +48,6 @@
 | go.yaml.in/yaml/v3 | v3.0.4 | Apache-2.0 | Permissive | 2026-08-24 | 정수민 |
 | gopkg.in/check.v1 | v0.0.0-20161208 | BSD-2-Clause | Permissive | 2026-08-24 | 정수민 |
 
-
 > `go-licenses check ./...` 실행 결과(로그 또는 CI 아티팩트 링크)를 여기에 첨부하거나
 > 링크로 남기세요. 절차는 `CONTRIBUTING.md`의 "새 의존성 추가 시" 항목 참고.
 
@@ -59,4 +58,4 @@
 | 1주차 | 잠정 의존성 목록 | | 등록 예정 |
 | 2주차 | cli/ 신규 의존성 (bubbletea, cobra, x/ansi, x/sys/unix) | 전부 permissive 확인 | PR #4 |
 | 4주차 | 전체 27개 의존성 (go list -m all 기준) | 전부 permissive 확정 (MIT/BSD/Apache-2.0), GPL/AGPL 없음 | go-licenses 도구 실행 불가(google/go-licenses#128, Go 1.26.5 auto-toolchain 버그) → go list -m all + 각 저장소 라이선스 배지 수동 확인으로 대체 |
-| 5주차 (최종) | 전체 | | GPL/AGPL 계열 없음 확인 필요 |
+| 5주차 (최종) | 전체 (전 팀원 작업 merge 후, `cli/go.mod` 기준, 2026-08-25) | 신규 의존성 없음. 오히려 `go mod tidy`로 일부 미사용 패키지(golang.org/x/exp, go-udiff, bitset, go-md2man, blackfriday, yaml/v3, check.v1 등)가 정리되어 실제 사용 목록이 축소됨. CI `License check (cli 의존성)` 워크플로우 최종 통과 확인(2026-08-25, `CLI build & vet` / `License check` / `Kernel build` 전부 성공) — GPL/AGPL 계열 없음 확정 | CI 실행 결과: 3개 워크플로우 전부 Success (총 1m 3s) |
